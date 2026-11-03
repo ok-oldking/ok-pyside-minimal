@@ -33,6 +33,10 @@ from scripts.repack import patch_assignment, repack
     "PySide6/plugins/tls/qopensslbackend.dll", "PySide6/plugins/imageformats/qtiff.dll",
     "PySide6/metatypes/qt6core_metatypes.json", "PySide6/pyside6.abi3.lib",
     "PySide6/Qt/lib/QtDBus.framework/Headers/QtDBus.h",
+    "PySide6/resources/icudtl.dat", "PySide6/vcamp140.dll", "PySide6/concrt140.dll",
+    "PySide6/vccorlib140.dll", "PySide6/vcomp140.dll", "PySide6/msvcp140_codecvt_ids.dll",
+    "PySide6/plugins/platforms/qdirect2d.dll",
+    "PySide6/plugins/platforminputcontexts/qtvirtualkeyboardplugin.dll",
 ])
 def test_excluded_paths(path):
     assert remove(path)
@@ -44,6 +48,7 @@ def test_excluded_paths(path):
     "PySide6/plugins/platforms/qwindows.dll", "PySide6/Qt/plugins/imageformats/libqsvg.so",
     "PySide6/Qt/lib/libQt6WaylandClient.so.6", "PySide6/Qt/lib/libQt6DBus.so.6",
     "PySide6/Qt/lib/QtDBus.framework/Versions/A/QtDBus",
+    "PySide6/msvcp140.dll", "PySide6/vcruntime140.dll", "PySide6/vcruntime140_1.dll",
 ])
 def test_retained_paths(path):
     assert not remove(path)
@@ -74,6 +79,10 @@ def test_complete_wheel_transformation(tmp_path):
         di + "/WHEEL": b"Wheel-Version: 1.0\nRoot-Is-Purelib: false\nTag: cp310-abi3-win_amd64\n",
         di + "/entry_points.txt": b"[console_scripts]\npyside6-qml = bad:qml\npyside6-uic = tools:uic\n",
         di + "/RECORD": b"old-record",
+        "PySide6/resources/icudtl.dat": b"unused ICU data",
+        "PySide6/concrt140.dll": b"unused runtime",
+        "PySide6/plugins/platforms/qdirect2d.dll": b"unused platform",
+        "PySide6/plugins/platforms/qwindows.dll": b"required platform",
     }
     with zipfile.ZipFile(source, "w") as z:
         for name, data in files.items():
@@ -95,6 +104,10 @@ def test_complete_wheel_transformation(tmp_path):
         exec(z.read("PySide6/_config.py"), scope)
         assert scope["built_modules"] == ["Core", "Gui", "Widgets"]
         assert z.read("PySide6/QtCore.pyd") == files["PySide6/QtCore.pyd"]
+        assert "PySide6/resources/icudtl.dat" not in z.namelist()
+        assert "PySide6/concrt140.dll" not in z.namelist()
+        assert "PySide6/plugins/platforms/qdirect2d.dll" not in z.namelist()
+        assert z.read("PySide6/plugins/platforms/qwindows.dll") == b"required platform"
         assert z.getinfo("PySide6/QtCore.pyd").external_attr == 0o100755 << 16
         rows = list(csv.reader(io.StringIO(z.read(ndi + "/RECORD").decode())))
         assert {row[0] for row in rows} == set(z.namelist())
@@ -113,14 +126,15 @@ def test_plan_repairs_partial_upload(monkeypatch):
     file = {"filename": "pyside6_essentials-6.12.0-cp310-abi3-win_amd64.whl", "packagetype": "bdist_wheel", "yanked": False}
     monkeypatch.setattr(release, "upstream", lambda version=None: {"releases": {"6.12.0": [], "6.13.0rc1": []}, "urls": [file]})
     monkeypatch.setattr(release, "fetch_json", lambda *a, **kw: {"urls": []})
-    assert release.make_plan()["version"] == "6.12.0.post1"
-    monkeypatch.setattr(release, "fetch_json", lambda *a, **kw: {"urls": [{"filename": release.output_name(file["filename"], "6.12.0.post1")}]})
+    assert release.make_plan()["version"] == "6.12.0.post2"
+    monkeypatch.setattr(release, "fetch_json", lambda *a, **kw: {"urls": [{"filename": release.output_name(file["filename"], "6.12.0.post2")}]})
     assert release.make_plan()["available"] == "false"
 
 
 def test_deleted_release_uses_unused_revision():
-    assert release.release_version("6.12.0") == "6.12.0.post1"
-    assert release.release_version("6.12.0", 2) == "6.12.0.post2"
+    assert release.release_version("6.12.0") == "6.12.0.post2"
+    assert release.release_version("6.12.0", 1) == "6.12.0.post2"
+    assert release.release_version("6.12.0", 3) == "6.12.0.post3"
     assert release.release_version("6.12.1") == "6.12.1"
     with pytest.raises(ValueError):
         release.release_version("6.12.0", -1)

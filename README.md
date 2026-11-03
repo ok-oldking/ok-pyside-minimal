@@ -29,6 +29,7 @@ Use a clean environment. This distribution owns the `PySide6` namespace: do not 
 | GIF, ICNS, ICO, JPEG, SVG and WebP image plugins (PNG/BMP are built into QtGui) | QtHelp (depends on SQL), QtUiTools (depends on OpenGLWidgets), TLS/network plugins, PDF/TIFF/TGA/WBMP image plugins |
 | Native QtDBus library on Linux/macOS, required by QtGui | Windows QtDBus DLL, bundled translations, CMake files, headers, type systems, glue, metatypes and documentation |
 | Runtime support and Python type stubs | All bundled development tools and console entry points, including `uic` and `rcc` |
+| Required MSVC runtime DLLs and `qwindows.dll` on Windows | Chromium `resources/icudtl.dat`, unused `vcamp140`/`concrt140`/`vccorlib140`/`vcomp140`/`msvcp140_codecvt_ids` DLLs, `qdirect2d.dll` and the Windows virtual keyboard plugin |
 
 OpenGL removal means removing the separate Qt OpenGL modules, their plugins, and the bundled Windows software OpenGL renderer. QtGui itself is upstream's unchanged binary and still contains graphics APIs, including OpenGL interfaces, and may use system graphics libraries. A Qt build with OpenGL support disabled would require a separate source-build project.
 
@@ -46,7 +47,7 @@ Each release:
 4. Installs and tests each wheel on its native platform, including both macOS architectures, and runs `twine check`.
 5. Publishes through **GitHub Actions OIDC / PyPI Trusted Publishing**, then creates a GitHub release with wheels and build reports.
 
-Version numbers match upstream, except **6.12.0 is published as 6.12.0.post1** because its original PyPI release was deleted and PyPI does not permit reusing those filenames. Automatic discovery and local builds both apply this minimum revision. For a packaging correction, manually run the workflow with the upstream version and a positive `revision`. The Shiboken dependency and `PySide6.__version__` remain at the upstream version. Retries build all artifacts and skip wheels already uploaded to PyPI, allowing partial uploads to recover. Scheduled workflows may be delayed by GitHub and may be disabled after 60 days of repository inactivity; re-enable them in Actions if needed.
+Version numbers match upstream, except **6.12.0 currently uses 6.12.0.post2**, which removes additional unused Windows payloads. The original 6.12.0 PyPI release was deleted; post releases use new filenames because PyPI does not permit reusing deleted ones. Automatic discovery and local builds both apply the latest minimum packaging revision. For a packaging correction, manually run the workflow with the upstream version and a positive `revision`. The Shiboken dependency and `PySide6.__version__` remain at the upstream version. Retries build all artifacts and skip wheels already uploaded to PyPI, allowing partial uploads to recover. Scheduled workflows may be delayed by GitHub and may be disabled after 60 days of repository inactivity; re-enable them in Actions if needed.
 
 ## One-time publishing setup
 

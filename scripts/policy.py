@@ -21,12 +21,23 @@ REMOVED_TOOLS = {
     "uic", "rcc",
 }
 IMAGE_PLUGINS = {"qgif", "qicns", "qico", "qjpeg", "qsvg", "qwebp"}
+# Unused Windows payloads, including Chromium ICU data and optional runtimes.
+# The native dependency scan still rejects any future required import of these DLLs.
+WINDOWS_UNUSED = {
+    "resources/icudtl.dat",
+    "vcamp140.dll", "concrt140.dll", "vccorlib140.dll", "vcomp140.dll",
+    "msvcp140_codecvt_ids.dll",
+    "plugins/platforms/qdirect2d.dll",
+    "plugins/platforminputcontexts/qtvirtualkeyboardplugin.dll",
+}
 
 
 def remove(path: str) -> bool:
     parts = PurePosixPath(path).parts
     if not parts or parts[0] != "PySide6":
         return False
+    if "/".join(parts[1:]).lower() in WINDOWS_UNUSED:
+        return True
     if any(p in {"include", "doc", "glue", "typesystems", "scripts", "cmake", "metatypes",
                  "translations", "__pycache__", "libexec", "bin", "Headers", "Modules"} for p in parts[1:]):
         return True

@@ -74,6 +74,11 @@ jobs:
           python -m pip check
       - name: Exercise Widgets and retained modules
         run: python -m scripts.smoke
+      - name: Exercise native Windows platform
+        if: runner.os == 'Windows'
+        env:
+          QT_QPA_PLATFORM: windows
+        run: python -m scripts.smoke
       - uses: actions/upload-artifact@v4
         with:
           name: wheel-${{ strategy.job-index }}

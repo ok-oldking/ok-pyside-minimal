@@ -12,8 +12,8 @@ from packaging.version import Version
 from scripts.repack import PROJECT, repack
 
 BASELINE = Version("6.12.0")
-# PyPI permanently reserves filenames from deleted releases.
-MINIMUM_REVISIONS = {"6.12.0": 1}
+# Latest packaging revision per upstream version. Deleted filenames cannot be reused.
+MINIMUM_REVISIONS = {"6.12.0": 2}
 
 
 def release_version(upstream_version: str, revision: int = 0) -> str:

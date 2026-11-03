@@ -12,6 +12,12 @@ metadata are adjusted to describe the subset. Retained native binaries are
 not patched or recompiled. The original wheel's source and build information
 apply to them.
 
+The runtime subset contains only QtCore, QtGui, QtWidgets and QtSvg Python
+bindings. QtDBus native libraries are retained on Linux and macOS because
+QtGui links to them; the Python DBus bindings are removed. Development tools,
+development metadata and bundled Qt translations are removed. The only Python
+distribution dependency is the matching shiboken6 release.
+
 Corresponding upstream source and build instructions:
 https://code.qt.io/cgit/pyside/pyside-setup.git/
 https://code.qt.io/cgit/qt/qt5.git/

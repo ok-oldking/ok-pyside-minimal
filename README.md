@@ -17,21 +17,22 @@ label.show()
 app.exec()
 ```
 
-Use a clean environment. This distribution owns the `PySide6` namespace: do not install it alongside `PySide6`, `PySide6-Essentials`, or `PySide6-Addons`. It does not satisfy another package's declared dependency on `PySide6-Essentials`; that dependency must be changed by the consuming project. `shiboken6` is installed at exactly the matching upstream version.
+Use a clean environment. This distribution owns the `PySide6` namespace: do not install it alongside `PySide6`, `PySide6-Essentials`, or `PySide6-Addons`. It does not satisfy another package's declared dependency on `PySide6-Essentials`; that dependency must be changed by the consuming project. **The only Python dependency is `shiboken6`**, pinned to the exact upstream version. No Addons, PySide6 metapackage, PDF, WebEngine, Shiboken generator, NumPy or setuptools is required at runtime. `requirements-dev.txt` is only for building and testing this repository.
 
 ## Contents
 
 | Kept | Removed |
 | --- | --- |
 | QtCore, QtGui, QtWidgets | Qt Quick and QML, including Labs and Lottie modules |
-| QtNetwork, QtConcurrent, QtDBus where provided upstream | QtOpenGL and QtOpenGLWidgets |
-| QtXml, QtTest, QtSvg, QtSvgWidgets | QtSql, QtDesigner, QtPrintSupport |
-| Platform, image, SVG, style, network and TLS plugins that pass dependency checks | QtHelp (depends on SQL), QtUiTools (depends on OpenGLWidgets) |
-| `uic`, `rcc` and selected Python helpers | Designer, Assistant, QML tools, translation tools, deployment/project generators and associated plugins |
+| QtSvg for rendering and SVG icons | QtOpenGL, QtOpenGLWidgets, QtSql, QtDesigner, QtPrintSupport |
+| Platform plugins and native styles | QtNetwork, QtConcurrent, QtTest, QtXml, QtSvgWidgets, Python QtDBus bindings |
+| GIF, ICNS, ICO, JPEG, SVG and WebP image plugins (PNG/BMP are built into QtGui) | QtHelp (depends on SQL), QtUiTools (depends on OpenGLWidgets), TLS/network plugins, PDF/TIFF/TGA/WBMP image plugins |
+| Native QtDBus library on Linux/macOS, required by QtGui | Windows QtDBus DLL, bundled translations, CMake files, headers, type systems, glue, metatypes and documentation |
+| Runtime support and Python type stubs | All bundled development tools and console entry points, including `uic` and `rcc` |
 
 OpenGL removal means removing the separate Qt OpenGL modules, their plugins, and the bundled Windows software OpenGL renderer. QtGui itself is upstream's unchanged binary and still contains graphics APIs, including OpenGL interfaces, and may use system graphics libraries. A Qt build with OpenGL support disabled would require a separate source-build project.
 
-`.ui` files can still be compiled with `pyside6-uic`; runtime `QUiLoader` is unavailable. Native dependency scans remove optional plugins that link to removed libraries and stop the build if a required runtime binary would break.
+Compile `.ui` and `.qrc` files in a separate development environment using official PySide6; ship the generated Python files with your application. Runtime `QUiLoader` is unavailable. Native dependency scans remove optional plugins that link to removed libraries and stop the build if a required runtime binary would break. QtGui's native DBus dependency on Linux/macOS and other upstream system libraries cannot be removed through file pruning.
 
 ## Automatic releases
 

@@ -1,7 +1,6 @@
 """Transform an official wheel, retaining native binaries byte for byte."""
 import ast
 import base64
-import configparser
 import csv
 import hashlib
 import io
@@ -15,7 +14,7 @@ from pathlib import Path
 from packaging.utils import parse_wheel_filename
 
 from scripts.native import identity, prune_broken_plugins
-from scripts.policy import ENTRY_POINTS, MODULES, remove
+from scripts.policy import MODULES, remove
 
 PROJECT = "ok-pyside-minimal"
 ROOT = Path(__file__).resolve().parents[1]
@@ -75,9 +74,10 @@ def repack(source: Path, output: Path, provenance: dict, version: str | None = N
         meta.replace_header("Name", PROJECT)
         meta.replace_header("Version", version)
         meta.replace_header("Summary", "Unofficial PySide6 Essentials subset for Qt Widgets applications")
-        for field in ("Project-URL", "Dynamic", "License-File"):
+        for field in ("Project-URL", "Dynamic", "License-File", "Requires-Dist", "Provides-Extra"):
             if field in meta:
                 del meta[field]
+        meta["Requires-Dist"] = f"shiboken6=={upstream_version}"
         meta["Project-URL"] = "Repository, https://github.com/ok-oldking/ok-pyside-minimal"
         meta["Project-URL"] = "Upstream, https://code.qt.io/cgit/pyside/pyside-setup.git/"
         meta.set_payload((ROOT / "README.md").read_text(encoding="utf-8"))
@@ -95,14 +95,6 @@ def repack(source: Path, output: Path, provenance: dict, version: str | None = N
         files[dist_info + "/METADATA"] = meta.as_string(policy=policy.default.clone(linesep="\n", max_line_length=0)).encode("utf-8")
         files[dist_info + "/WHEEL"] = wheel.read(old_info + "/WHEEL")
         files[dist_info + "/top_level.txt"] = b"PySide6\n"
-        config = configparser.ConfigParser()
-        config.read_string(normalized(wheel.read(old_info + "/entry_points.txt")))
-        for key in list(config["console_scripts"]):
-            if key.removeprefix("pyside6-") not in ENTRY_POINTS:
-                del config["console_scripts"][key]
-        buf = io.StringIO()
-        config.write(buf)
-        files[dist_info + "/entry_points.txt"] = buf.getvalue().encode()
         report = {
             "project": PROJECT, "version": version, "upstream_version": str(upstream_version),
             "upstream": provenance, "modules": modules,

@@ -25,6 +25,14 @@ from scripts.repack import patch_assignment, repack
     "PySide6/typesystems/typesystem_quick.xml", "PySide6/glue/qtqml.cpp",
     "PySide6/Qt/libexec/qmlcachegen", "PySide6/lupdate.exe", "PySide6/linguist.exe",
     "PySide6/include/PySide6/pysideqml.h", "PySide6/Qt/lib/libQt6EglFSDeviceIntegration.so.6",
+    "PySide6/Qt6Test.dll", "PySide6/QtTest.pyd", "PySide6/QtConcurrent.pyi",
+    "PySide6/QtDBus.abi3.so", "PySide6/Qt6DBus.dll", "PySide6/QtXml.pyd",
+    "PySide6/Qt6Network.dll", "PySide6/QtSvgWidgets.pyd", "PySide6/uic.exe",
+    "PySide6/Qt/lib/cmake/Qt6Core/Qt6CoreConfig.cmake", "PySide6/Qt/translations/qt_en.qm",
+    "PySide6/translations/qt_en.qm", "PySide6/scripts/pyside_tool.py",
+    "PySide6/plugins/tls/qopensslbackend.dll", "PySide6/plugins/imageformats/qtiff.dll",
+    "PySide6/metatypes/qt6core_metatypes.json", "PySide6/pyside6.abi3.lib",
+    "PySide6/Qt/lib/QtDBus.framework/Headers/QtDBus.h",
 ])
 def test_excluded_paths(path):
     assert remove(path)
@@ -32,9 +40,10 @@ def test_excluded_paths(path):
 
 @pytest.mark.parametrize("path", [
     "PySide6/QtCore.abi3.so", "PySide6/QtGui.pyd", "PySide6/Qt6Widgets.dll",
-    "PySide6/Qt/lib/QtSvg.framework/Versions/A/QtSvg", "PySide6/QtNetwork.pyi",
+    "PySide6/Qt/lib/QtSvg.framework/Versions/A/QtSvg",
     "PySide6/plugins/platforms/qwindows.dll", "PySide6/Qt/plugins/imageformats/libqsvg.so",
-    "PySide6/Qt/lib/libQt6WaylandClient.so.6", "PySide6/uic.exe",
+    "PySide6/Qt/lib/libQt6WaylandClient.so.6", "PySide6/Qt/lib/libQt6DBus.so.6",
+    "PySide6/Qt/lib/QtDBus.framework/Versions/A/QtDBus",
 ])
 def test_retained_paths(path):
     assert not remove(path)
@@ -61,7 +70,7 @@ def test_complete_wheel_transformation(tmp_path):
         "PySide6/_config.py": b'built_modules = list(x for x in "Core;Qml".split(";"))\nversion = "6.12.0"\n',
         "PySide6/__init__.py": b'__pre_all__ = ["QtCore", "QtQml"]\n__version__ = "6.12.0"\n',
         "PySide6/PySide6_Essentials.json": b'{"Core": [], "Qml": []}',
-        di + "/METADATA": b"Metadata-Version: 2.4\nName: PySide6_Essentials\nVersion: 6.12.0\nSummary: Qt\nRequires-Python: >=3.10\nRequires-Dist: shiboken6==6.12.0\nLicense: LGPL-3.0-only\n\nUpstream\n",
+        di + "/METADATA": b"Metadata-Version: 2.4\nName: PySide6_Essentials\nVersion: 6.12.0\nSummary: Qt\nRequires-Python: >=3.10\nRequires-Dist: shiboken6==6.12.0\nRequires-Dist: numpy\nRequires-Dist: setuptools\nLicense: LGPL-3.0-only\n\nUpstream\n",
         di + "/WHEEL": b"Wheel-Version: 1.0\nRoot-Is-Purelib: false\nTag: cp310-abi3-win_amd64\n",
         di + "/entry_points.txt": b"[console_scripts]\npyside6-qml = bad:qml\npyside6-uic = tools:uic\n",
         di + "/RECORD": b"old-record",
@@ -79,8 +88,9 @@ def test_complete_wheel_transformation(tmp_path):
         meta = BytesParser().parsebytes(z.read(ndi + "/METADATA"))
         assert meta["Name"] == "ok-pyside-minimal"
         assert meta["Requires-Dist"] == "shiboken6==6.12.0"
+        assert meta.get_all("Requires-Dist") == ["shiboken6==6.12.0"]
         assert meta["Version"] == "6.12.0.post1"
-        assert "pyside6-qml" not in z.read(ndi + "/entry_points.txt").decode()
+        assert ndi + "/entry_points.txt" not in z.namelist()
         scope = {}
         exec(z.read("PySide6/_config.py"), scope)
         assert scope["built_modules"] == ["Core", "Gui", "Widgets"]

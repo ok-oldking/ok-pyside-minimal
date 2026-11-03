@@ -12,6 +12,16 @@ from packaging.version import Version
 from scripts.repack import PROJECT, repack
 
 BASELINE = Version("6.12.0")
+# PyPI permanently reserves filenames from deleted releases.
+MINIMUM_REVISIONS = {"6.12.0": 1}
+
+
+def release_version(upstream_version: str, revision: int = 0) -> str:
+    if revision < 0:
+        raise ValueError("Revision must be nonnegative")
+    version = str(Version(upstream_version))
+    revision = max(revision, MINIMUM_REVISIONS.get(version, 0))
+    return version + (f".post{revision}" if revision else "")
 
 
 def fetch_json(url: str, missing_ok: bool = False) -> dict:
@@ -60,7 +70,7 @@ def make_plan(requested: str | None = None, revision: int = 0) -> dict:
         if Version(v) >= BASELINE and not Version(v).is_prerelease and not Version(v).is_devrelease
     )
     for candidate in versions:
-        version = str(candidate) + (f".post{revision}" if revision else "")
+        version = release_version(str(candidate), revision)
         data = upstream(str(candidate))
         files = wheel_files(data)
         existing = fetch_json(f"https://pypi.org/pypi/{PROJECT}/{version}/json", missing_ok=True)
@@ -129,7 +139,7 @@ def main() -> None:
         files = [f for f in files if f["filename"] == args.filename]
         if not files:
             parser.error("Requested wheel is not part of the official release")
-    version = str(Version(args.version)) + (f".post{args.revision}" if args.revision else "")
+    version = release_version(args.version, args.revision)
     Path("reports").mkdir(exist_ok=True)
     for file in files:
         source = download(file, args.cache)

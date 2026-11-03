@@ -113,9 +113,17 @@ def test_plan_repairs_partial_upload(monkeypatch):
     file = {"filename": "pyside6_essentials-6.12.0-cp310-abi3-win_amd64.whl", "packagetype": "bdist_wheel", "yanked": False}
     monkeypatch.setattr(release, "upstream", lambda version=None: {"releases": {"6.12.0": [], "6.13.0rc1": []}, "urls": [file]})
     monkeypatch.setattr(release, "fetch_json", lambda *a, **kw: {"urls": []})
-    assert release.make_plan()["version"] == "6.12.0"
-    monkeypatch.setattr(release, "fetch_json", lambda *a, **kw: {"urls": [{"filename": release.output_name(file["filename"], "6.12.0")}]})
+    assert release.make_plan()["version"] == "6.12.0.post1"
+    monkeypatch.setattr(release, "fetch_json", lambda *a, **kw: {"urls": [{"filename": release.output_name(file["filename"], "6.12.0.post1")}]})
     assert release.make_plan()["available"] == "false"
+
+
+def test_deleted_release_uses_unused_revision():
+    assert release.release_version("6.12.0") == "6.12.0.post1"
+    assert release.release_version("6.12.0", 2) == "6.12.0.post2"
+    assert release.release_version("6.12.1") == "6.12.1"
+    with pytest.raises(ValueError):
+        release.release_version("6.12.0", -1)
 
 
 def test_unknown_platform_and_yanked_release_fail_closed():

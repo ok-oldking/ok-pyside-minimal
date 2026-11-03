@@ -46,7 +46,7 @@ Each release:
 4. Installs and tests each wheel on its native platform, including both macOS architectures, and runs `twine check`.
 5. Publishes through **GitHub Actions OIDC / PyPI Trusted Publishing**, then creates a GitHub release with wheels and build reports.
 
-Version numbers match upstream. For a packaging correction, manually run the workflow with the upstream version and a positive `revision`, producing e.g. `6.12.0.post1`. The Shiboken dependency and `PySide6.__version__` remain at the upstream version. Retries build all artifacts and skip wheels already uploaded to PyPI, allowing partial uploads to recover. Scheduled workflows may be delayed by GitHub and may be disabled after 60 days of repository inactivity; re-enable them in Actions if needed.
+Version numbers match upstream, except **6.12.0 is published as 6.12.0.post1** because its original PyPI release was deleted and PyPI does not permit reusing those filenames. Automatic discovery and local builds both apply this minimum revision. For a packaging correction, manually run the workflow with the upstream version and a positive `revision`. The Shiboken dependency and `PySide6.__version__` remain at the upstream version. Retries build all artifacts and skip wheels already uploaded to PyPI, allowing partial uploads to recover. Scheduled workflows may be delayed by GitHub and may be disabled after 60 days of repository inactivity; re-enable them in Actions if needed.
 
 ## One-time publishing setup
 

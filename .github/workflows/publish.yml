@@ -97,7 +97,8 @@ jobs:
           pattern: wheel-*
           path: dist
           merge-multiple: true
-      - run: python -m pip install --only-binary=:all: --no-index --find-links dist --no-deps ok-pyside-minimal
+      - run: |
+          python -m pip install --only-binary=:all: --no-index --find-links dist --no-deps ok-pyside-minimal
       - env:
           UPSTREAM_VERSION: ${{ needs.discover.outputs.upstream_version }}
         run: python -m pip install "shiboken6==$UPSTREAM_VERSION"

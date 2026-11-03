@@ -1,0 +1,156 @@
+name: Publish to PyPI
+on:
+  schedule:
+    - cron: '23 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Official upstream version (blank discovers updates)
+        type: string
+      revision:
+        description: Packaging revision (0 matches upstream; 1 produces .post1)
+        type: string
+        default: '0'
+
+permissions:
+  contents: read
+concurrency:
+  group: publish-pypi
+  cancel-in-progress: false
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    outputs:
+      available: ${{ steps.plan.outputs.available }}
+      version: ${{ steps.plan.outputs.version }}
+      upstream_version: ${{ steps.plan.outputs.upstream_version }}
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r requirements-dev.txt
+      - run: python -m pytest
+      - id: plan
+        env:
+          REQUESTED_VERSION: ${{ inputs.version }}
+          REVISION: ${{ inputs.revision || '0' }}
+        shell: bash
+        run: |
+          args=(--revision "$REVISION")
+          if [[ -n "$REQUESTED_VERSION" ]]; then args+=(--version "$REQUESTED_VERSION"); fi
+          python -m scripts.release plan "${args[@]}"
+
+  build:
+    needs: discover
+    if: needs.discover.outputs.available == 'true'
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.discover.outputs.matrix) }}
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Linux runtime dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libegl1 libopengl0 libgl1 libxkbcommon0 libdbus-1-3
+      - run: python -m pip install -r requirements-dev.txt
+      - name: Build official wheel subset
+        env:
+          UPSTREAM_VERSION: ${{ needs.discover.outputs.upstream_version }}
+          FILENAME: ${{ matrix.filename }}
+          REVISION: ${{ inputs.revision || '0' }}
+        run: python -m scripts.release build --version "$UPSTREAM_VERSION" --filename "$FILENAME" --revision "$REVISION"
+        shell: bash
+      - name: Validate metadata and install
+        shell: bash
+        run: |
+          python -m twine check dist/*
+          python -m pip install --only-binary=:all: --find-links dist ok-pyside-minimal==${{ needs.discover.outputs.version }}
+          python -m pip check
+      - name: Exercise Widgets and retained modules
+        run: python -m scripts.smoke
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel-${{ strategy.job-index }}
+          path: dist/*.whl
+      - uses: actions/upload-artifact@v4
+        with:
+          name: report-${{ strategy.job-index }}
+          path: reports/*.json
+
+  test-macos-intel:
+    needs: [discover, build]
+    if: needs.discover.outputs.available == 'true'
+    runs-on: macos-15-intel
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: wheel-*
+          path: dist
+          merge-multiple: true
+      - run: python -m pip install --only-binary=:all: --no-index --find-links dist --no-deps ok-pyside-minimal
+      - env:
+          UPSTREAM_VERSION: ${{ needs.discover.outputs.upstream_version }}
+        run: python -m pip install "shiboken6==$UPSTREAM_VERSION"
+      - run: python -m scripts.smoke
+
+  publish:
+    needs: [discover, build, test-macos-intel]
+    if: needs.discover.outputs.available == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/ok-pyside-minimal/
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: wheel-*
+          path: dist
+          merge-multiple: true
+      - name: Publish with GitHub OIDC
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          skip-existing: true
+
+  release:
+    needs: [discover, publish]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: wheel-*
+          path: dist
+          merge-multiple: true
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: report-*
+          path: reports
+          merge-multiple: true
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.discover.outputs.version }}
+          UPSTREAM_VERSION: ${{ needs.discover.outputs.upstream_version }}
+        shell: bash
+        run: |
+          printf 'Unofficial minimal subset of PySide6-Essentials %s.\n\n[PyPI](https://pypi.org/project/ok-pyside-minimal/%s/)\n\nSee attached reports for upstream SHA-256 digests and removal manifests.\n' "$UPSTREAM_VERSION" "$VERSION" > notes.md
+          flags=()
+          if [[ "$VERSION" =~ (a|b|rc|dev)[0-9]+ ]]; then flags+=(--prerelease); fi
+          if ! gh release view "v$VERSION" >/dev/null 2>&1; then
+            gh release create "v$VERSION" --target "$GITHUB_SHA" --title "v$VERSION" --notes-file notes.md "${flags[@]}"
+          fi
+          gh release upload "v$VERSION" dist/*.whl reports/*.json --clobber
